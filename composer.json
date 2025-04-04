@@ -1,7 +1,7 @@
 {
-    "name": "impensavel/spoil",
+    "name": "qwertyllo/spoil",
     "type": "library",
-    "description": "SPOIL is a PHP library for SharePoint Online (2013) and SharePoint for Office 365.",
+    "description": "SPOIL is a PHP library for SharePoint Online (2013) and SharePoint for Office 365. Forked from impensavel/spoil",
     "keywords": [
         "sharepoint",
         "online",
@@ -13,12 +13,12 @@
         "api",
         "client"
     ],
-    "homepage": "https://github.com/impensavel/spoil",
+    "homepage": "https://github.com/qwertyllo/spoil",
     "license": "MIT",
     "authors": [
         {
-            "name": "Quetzy Garcia",
-            "email": "quetzyg@impensavel.com",
+            "name": "Qwertyllo Dev",
+            "email": "qwertyllodev@gmail.com",
             "role": "Developer"
         }
     ],
