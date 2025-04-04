@@ -55,7 +55,7 @@ abstract class SPListObject extends SPObject implements ArrayAccess, Countable, 
     /**
      * {@inheritdoc}
      */
-    public function count()
+    public function count() : int
     {
         return count($this->items);
     }
@@ -63,7 +63,7 @@ abstract class SPListObject extends SPObject implements ArrayAccess, Countable, 
     /**
      * {@inheritdoc}
      */
-    public function getIterator()
+    public function getIterator() : ArrayIterator
     {
         return new ArrayIterator($this->items);
     }
@@ -71,7 +71,7 @@ abstract class SPListObject extends SPObject implements ArrayAccess, Countable, 
     /**
      * {@inheritdoc}
      */
-    public function offsetExists($offset)
+    public function offsetExists($offset) : bool
     {
         return isset($this->items[$offset]);
     }
@@ -79,7 +79,7 @@ abstract class SPListObject extends SPObject implements ArrayAccess, Countable, 
     /**
      * {@inheritdoc}
      */
-    public function offsetGet($offset)
+    public function offsetGet($offset) : mixed
     {
         if (isset($this->items[$offset])) {
             return $this->items[$offset];
@@ -91,7 +91,7 @@ abstract class SPListObject extends SPObject implements ArrayAccess, Countable, 
     /**
      * {@inheritdoc}
      */
-    public function offsetSet($offset, $value)
+    public function offsetSet($offset, $value) : void
     {
         if (! $value instanceof SPItemInterface) {
             throw new SPBadMethodCallException('SharePoint Item expected');
@@ -106,7 +106,7 @@ abstract class SPListObject extends SPObject implements ArrayAccess, Countable, 
     /**
      * {@inheritdoc}
      */
-    public function offsetUnset($offset)
+    public function offsetUnset($offset) : void
     {
         unset($this->items[$offset]);
     }
@@ -138,7 +138,7 @@ abstract class SPListObject extends SPObject implements ArrayAccess, Countable, 
     /**
      * {@inheritdoc}
      */
-    public function getRelativeUrl($path = null)
+    public function getRelativeUrl($path = '')
     {
         return sprintf('%s/%s', rtrim($this->relativeUrl, '/'), ltrim($path, '/'));
     }
