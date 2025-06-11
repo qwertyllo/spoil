@@ -23,7 +23,7 @@
         }
     ],
     "require": {
-        "php": ">=7.4",
+        "php": ">=5.5.0",
         "php-http/message": "^1.0",
         "firebase/php-jwt": "^3.0",
         "nesbot/carbon": "^2.0"
