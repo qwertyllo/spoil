@@ -19,7 +19,7 @@ use Carbon\Carbon;
 use Impensavel\Spoil\Exception\SPBadMethodCallException;
 use Impensavel\Spoil\Exception\SPRuntimeException;
 
-class SPContextInfo extends SPObject implements Serializable
+class SPContextInfo extends SPObject
 {
     /**
      * Library version
@@ -97,26 +97,26 @@ class SPContextInfo extends SPObject implements Serializable
     /**
      * Serialize SharePoint Context Info
      *
-     * @return  string
+     * @return  array
      */
-    public function serialize()
+    public function __serialize(): array
     {
-        return serialize([
+        return [
             $this->libraryVersion,
             $this->schemaVersions,
             $this->formDigest,
             $this->formDigestExpiration->getTimestamp(),
             $this->formDigestExpiration->getTimezone()->getName(),
-        ]);
+        ];
     }
 
     /**
      * Recreate SharePoint Context Info
      *
-     * @param   string $serialized
+     * @param   array $data
      * @return  void
      */
-    public function unserialize($serialized)
+    public function __unserialize(array $data): void
     {
         list(
             $this->libraryVersion,
@@ -124,7 +124,7 @@ class SPContextInfo extends SPObject implements Serializable
             $this->formDigest,
             $timestamp,
             $timezone
-        ) = unserialize($serialized);
+        ) = $data;
 
         $this->formDigestExpiration = Carbon::createFromTimeStamp($timestamp, $timezone);
     }
