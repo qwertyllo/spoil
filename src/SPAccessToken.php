@@ -22,7 +22,7 @@ use Impensavel\Spoil\Exception\SPBadMethodCallException;
 use Impensavel\Spoil\Exception\SPRuntimeException;
 use Impensavel\Spoil\Exception\SPInvalidArgumentException;
 
-class SPAccessToken extends SPObject implements Serializable
+class SPAccessToken extends SPObject
 {
     /**
      * Access token
@@ -82,26 +82,26 @@ class SPAccessToken extends SPObject implements Serializable
     /**
      * Serialize SharePoint Access Token
      *
-     * @return  string
+     * @return  array
      */
-    public function serialize()
+    public function __serialize(): array
     {
-        return serialize([
+        return [
             $this->value,
             $this->expiration->getTimestamp(),
             $this->expiration->getTimezone()->getName(),
-        ]);
+        ];
     }
 
     /**
      * Recreate SharePoint Access Token
      *
-     * @param   string $serialized
+     * @param   array $data
      * @return  void
      */
-    public function unserialize($serialized)
+    public function __unserialize(array $data): void
     {
-        list($this->value, $timestamp, $timezone) = unserialize($serialized);
+        list($this->value, $timestamp, $timezone) = $data;
 
         $this->expiration = Carbon::createFromTimeStamp($timestamp, $timezone);
     }
