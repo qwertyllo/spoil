@@ -43,8 +43,9 @@ class SPAccessToken extends SPObject implements Serializable
      */
     protected function hydrate($data, $exceptions = true)
     {
-        if (array_key_exists('expires_on', $data)) {
-            $data['expires_on'] = Carbon::now()->addSeconds($data['expires_on']);
+        $expires = $data['expires_on'] ?? $data['expires_in'] ?? null;
+        if ($expires) {
+            $data['expires_on'] = Carbon::now()->addSeconds((int)$expires);
         }
 
         return parent::hydrate($data, $exceptions);
@@ -201,9 +202,10 @@ class SPAccessToken extends SPObject implements Serializable
     public static function createAppOnlyPolicy(SPSite $site, array $extra = [])
     {
         $config = $site->getConfig();
+        $useCertificate = !empty($config['certificate_path']);
 
-        if (empty($config['secret'])) {
-            throw new SPBadMethodCallException('The Secret is empty/not set');
+        if (!$useCertificate && empty($config['secret'])) {
+            throw new SPBadMethodCallException('The Secret/Certificate is empty/not set');
         }
 
         if (empty($config['acs'])) {
@@ -218,25 +220,119 @@ class SPAccessToken extends SPObject implements Serializable
             throw new SPBadMethodCallException('The Client ID is empty/not set');
         }
 
-        if (empty($config['resource'])) {
+        if (!$useCertificate && empty($config['resource'])) {
             throw new SPBadMethodCallException('The Resource is empty/not set');
         }
+                
+        // Get vars from config
+        $tenantId = $config['tenant_id'];
+        $clientId = $config['client_id'];
+        $pfxPath = storage_path($config['certificate_path']);
+        $pfxPassword = $config['certificate_password'];
+        $scope = 'https://' . $config['host'] . '/.default';
+        $tokenEndpoint = sprintf('https://login.microsoftonline.com/%s/oauth2/v2.0/token', $tenantId);
 
-        $json = $site->request($config['acs'], [
+        // Get client assertion using certificate
+        list($privateKey, $certificate) = self::getCertificate($pfxPath, $pfxPassword);
+        $clientAssertion = self::getClientAssertion($clientId, $tokenEndpoint, $certificate, $privateKey);
+
+        // Build HTTP payload
+        $payload = [
+            'grant_type' => 'client_credentials',
+            'client_id' => $clientId,
+        ];
+
+        if ($useCertificate) {
+            $payload += [
+                'scope' => $scope,
+                'client_assertion_type' =>
+                    'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+                'client_assertion' => $clientAssertion,
+            ];
+        }
+        else {
+            $payload += [
+                'client_secret' => $config['secret'],
+                'resource'      => $config['resource'],
+            ];
+        }
+
+        // Send HTTP request
+        $json = $site->request($tokenEndpoint, [
             'headers' => [
                 'Content-Type' => 'application/x-www-form-urlencoded',
             ],
-
-            // The POST body must be passed as a query string
-            'body'    => http_build_query([
-                'grant_type'    => 'client_credentials',
-                'client_id'     => $config['client_id'],
-                'client_secret' => $config['secret'],
-                'resource'      => $config['resource'],
-            ]),
+            'body' => http_build_query($payload),
         ], 'POST');
 
         return new static($json, $extra);
+    }
+
+    /**
+     * Returns certificate parts as array (privateKey, certificate)
+     *
+     * @param   string $pfxPath  Pfx certificate file path
+     * @param   string  $pfxPassword Pfx certificate password
+     * @throws  Exception
+     * @return  array
+     */
+    private static function getCertificate($pfxPath, $pfxPassword) {
+        $pkcs12 = file_get_contents($pfxPath);
+        if (!openssl_pkcs12_read($pkcs12, $certs, $pfxPassword)) {
+            throw new \Exception('Unable to read PFX certificate.');
+        }
+
+        $privateKey = $certs['pkey'];
+        $certificate = $certs['cert'];
+        return [$privateKey, $certificate];
+    }
+
+    /**
+     * Returns client assertion.
+     *
+     * @param   string $clientId  SharePoint client's ID
+     * @param   string  $tokenEndpoint Token's endpoint URL
+     * @param  string  $certificate Public part of certificate
+     * @param  string  $privateKey Private part of certificate
+     * @return  string
+     */
+    private static function getClientAssertion($clientId, $tokenEndpoint, $certificate, $privateKey) {
+        $now = time();
+        $payload = [
+            'aud' => $tokenEndpoint,
+            'iss' => $clientId,
+            'sub' => $clientId,
+            'jti' => (string) \Str::uuid(),
+            'nbf' => $now,
+            'iat' => $now,
+            'exp' => $now + 600,
+        ];
+        $headers = [
+            'typ' => 'JWT',
+            'alg' => 'RS256',
+            'x5t' => self::getThumbprint($certificate),
+        ];
+        return JWT::encode(
+            $payload,
+            $privateKey,
+            'RS256',
+            null,
+            $headers
+        );
+    }
+
+    /**
+     * Returns thumbprint given public part of certificate.
+     *
+     * @param  string  $certificate Public part of certificate
+     * @return  string
+     */
+    private static function getThumbprint($certificate) {
+        $parsed = openssl_x509_read($certificate);
+        openssl_x509_export($parsed, $pem);
+        $cleanPem = preg_replace('/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s/', '', $pem);
+        $sha1 = sha1(base64_decode($cleanPem), TRUE);
+        return rtrim(strtr(base64_encode($sha1), '+/', '-_'), '=');
     }
 
     /**
